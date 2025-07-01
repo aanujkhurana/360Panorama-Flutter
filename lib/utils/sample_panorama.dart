@@ -1,28 +1,27 @@
 
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 class SamplePanorama {
-  /// Load a sample panorama image from assets
+  /// Load a sample panorama image from the project folder
   static Future<String?> loadSamplePanorama() async {
     try {
-      // In a real app, you would include a sample panorama image in your assets
-      // For this example, we'll just return null
-      // In a complete implementation, you would:
-      // 1. Add a sample panorama image to your assets folder
-      // 2. Load it using rootBundle.load('assets/images/sample_panorama.jpg')
-      // 3. Write it to a temporary file and return the path
-      
-      // This is commented out as we don't have an actual sample image in assets yet
-      /*
-      final ByteData data = await rootBundle.load('assets/images/sample_panorama.jpg');
-      final Uint8List bytes = data.buffer.asUint8List();
-      
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/sample_panorama.jpg');
-      await file.writeAsBytes(bytes);
-      
-      return file.path;
-      */
-      
-      return null;
+      if (kIsWeb) {
+        // For web, return the relative path to the sample image in the web/assets folder
+        return 'assets/sample.jpg';
+      } else {
+        // For mobile platforms, use the sample.jpg in the project root
+        final String samplePath = 'sample.jpg';
+        final File sampleFile = File(samplePath);
+        
+        if (await sampleFile.exists()) {
+          return sampleFile.path;
+        } else {
+          print('Sample panorama file not found at: ${sampleFile.path}');
+          return null;
+        }
+      }
     } catch (e) {
       print('Error loading sample panorama: $e');
       return null;
