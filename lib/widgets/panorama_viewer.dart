@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:panorama/panorama.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class PanoramaViewerWidget extends StatefulWidget {
   final String imagePath;
@@ -49,7 +50,9 @@ class _PanoramaViewerWidgetState extends State<PanoramaViewerWidget> {
                 _lat = latitude;
               });
             },
-            child: Image.file(File(widget.imagePath)),
+            child: kIsWeb
+                ? Image.network(widget.imagePath)
+                : Image.file(File(widget.imagePath)),
           ),
           if (_showControls)
             Positioned(
