@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../widgets/panorama_viewer.dart';
 import '../utils/sample_panorama.dart';
 import 'history_screen.dart';
@@ -22,23 +23,114 @@ class _HomeScreenState extends State<HomeScreen> {
     Map<Permission, PermissionStatus> statuses = await [
       Permission.photos,
       Permission.storage,
+      Permission.camera,
     ].request();
 
     if (statuses[Permission.photos] != PermissionStatus.granted ||
-        statuses[Permission.storage] != PermissionStatus.granted) {
+        statuses[Permission.storage] != PermissionStatus.granted ||
+        (statuses[Permission.camera] != PermissionStatus.granted)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Permissions are required to access images'),
+            content: Text('Permissions are required to access images and camera'),
+            duration: Duration(seconds: 3),
           ),
         );
+        return;
       }
     }
   }
 
   Future<void> _pickImage(ImageSource source) async {
     try {
+      // Handle web platform differently
+      if (kIsWeb) {
+        setState(() {
+          _isLoading = true;
+        });
+        
+        try {
+          final XFile? pickedFile = await _picker.pickImage(source: source);
+          
+          if (pickedFile != null) {
+            setState(() {
+              _isLoading = false;
+            });
+            
+            if (mounted) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PanoramaViewerWidget(
+                    imagePath: pickedFile.path,
+                  ),
+                ),
+              );
+            }
+          } else {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+        } catch (e) {
+          setState(() {
+            _isLoading = false;
+          });
+          
+          String errorMessage = 'Error picking image';
+          
+          // Check for specific web platform errors
+          if (e.toString().contains('unsupported')) {
+            errorMessage = 'This feature is not fully supported in web browsers. Please try using the sample panorama or use a mobile device.';
+          } else {
+            errorMessage = 'Error picking image: $e';
+          }
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(errorMessage),
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+        }
+        return;
+      }
+      
+      // Mobile platform handling
       await _requestPermissions();
+      
+      // Check specific permission based on source
+      bool permissionGranted = false;
+      if (source == ImageSource.camera) {
+        permissionGranted = await Permission.camera.isGranted;
+        if (!permissionGranted) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Camera permission is required'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          return;
+        }
+      } else {
+        permissionGranted = await Permission.photos.isGranted;
+        if (!permissionGranted) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Photos permission is required'),
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+          return;
+        }
+      }
+      
       setState(() {
         _isLoading = true;
       });
@@ -72,7 +164,10 @@ class _HomeScreenState extends State<HomeScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error picking image: $e')),
+          SnackBar(
+            content: Text('Error picking image: $e'),
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
     }
